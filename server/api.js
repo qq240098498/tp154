@@ -5,6 +5,7 @@ const zones = require('./zones');
 const customers = require('./customers');
 const waybills = require('./waybills');
 const bills = require('./bills');
+const assignments = require('./assignments');
 const pricing = require('./pricing');
 
 function buildSummary() {
@@ -90,6 +91,17 @@ function createRouter() {
   router.post('/bills/generate', (req, res) => res.status(201).json(bills.generateBill(req.body || {})));
   router.get('/bills/:id', (req, res) => res.json(bills.getBill(req.params.id)));
   router.post('/bills/:id/void', (req, res) => res.json(bills.voidBill(req.params.id)));
+
+  // 未归属城市补归属：分组视图 / 预演 / 确认落定
+  router.get('/assignments', (req, res) => res.json(assignments.listGroups()));
+  router.post('/assignments/preview', (req, res) => {
+    const body = req.body || {};
+    res.json(assignments.preview(body.city, body.zoneId));
+  });
+  router.post('/assignments/commit', (req, res) => {
+    const body = req.body || {};
+    res.status(201).json(assignments.commit(body.city, body.zoneId, body));
+  });
 
   router.use((req, res) => {
     res.status(404).json({ error: { code: 'ROUTE_NOT_FOUND', message: '没有这个接口：' + req.method + ' ' + req.path } });

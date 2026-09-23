@@ -491,6 +491,10 @@ button.stat-row:hover { border-color: var(--brand-line); background: var(--brand
 .kv-list dd.is-warn { color: var(--danger); }
 .kv-list dd.is-amber { color: var(--amber-dark); font-weight: 600; }
 
+/* 预演差额：正数（多收）红，负数（少收）琥珀 */
+.amount-row b.is-warn, td.is-warn { color: var(--danger); }
+.amount-row b.is-amber, td.is-amber { color: var(--amber-dark); }
+
 .panel {
   padding: 11px 12px;
   margin: 12px 0;

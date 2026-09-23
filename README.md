@@ -15,10 +15,18 @@ npm start
 
 - 概览：分区、客户、运单、账单的数量与金额合计，运单状态分布，已有账期，未归属城市的运单数
 - 运单：登记与维护运单（客户、寄件城市、收件城市、实际重量、体积、件数、保价金额、附加服务、状态、创建时刻），支持按关键词、客户、状态筛选，可以只看收件城市还没归属分区的运单
+- 补归属：收件城市没落到任何分区的运单按城市分组单独管起来，写清每个城市压了多少条、涉及哪些客户、最早与最晚创建时刻，并给出建议归属分区与建议依据；选定分区后先出预演（跟着变动的运单数、预计计费金额合计、与之前相差多少、会牵动哪些已出账账单），确认后才落定
 - 运单计费：对单条运单算一次费用，结果会记在这条运单上，页面上直接能看到上次算出来的数
-- 分区：维护分区编码、名称、覆盖城市与城市别名、首重与续重价格、偏远附加、启用状态
+- 分区：维护分区编码、名称、覆盖城市与城市别名、首重与续重价格、偏远附加、启用状态；补归属落定的城市会写进覆盖城市，并在分区上留一条补归属登记
 - 客户：维护客户编码、名称、结算方式（月结／现结）、折扣、账期日
 - 账单：按账期与客户出账，查看账单总额与逐条明细，可以把账单作废
+
+## 补归属怎么落定
+
+1. 「补归属」标签按收件城市列出所有未归属运单：条数、涉及客户、最早/最晚创建时刻、建议分区与依据。
+2. 选中城市、选定分区后点「预演」：后端按所选分区逐票试算，给出预计计费金额合计；已出账的运单还会模拟重算所在账单，并把差额拆成「本城市运单带来的」与「同账单其他历史运单按正确分区重算带来的」两部分。
+3. 确认后落定：城市写进分区的覆盖城市登记（不是运单上的临时标记），分区上追加一条补归属登记（时刻、条数、依据、是否采纳建议）；未入账运单写回计费缓存；受影响的已出账账单整单按当前登记重算（总额与明细合计严格对齐）；作废账单不动。落定后该城市从待办视图消失，后续出账正常参与计费。
+4. 出账时如果还有未归属城市的候选运单，会直接报 `BILL_HAS_UNZONED_WAYBILL`，不再像旧版本那样静默按第一个分区计价。
 
 ## 计费口径
 
@@ -32,16 +40,17 @@ npm start
 ## 目录
 
 ```
-server/index.js     服务入口
-server/api.js       接口路由与错误处理
-server/store.js     数据读写
-server/pricing.js   计费口径
-server/zones.js     分区与城市归属
-server/customers.js 客户
-server/waybills.js  运单与单条计费
-server/bills.js     出账与账单
-public/             页面
-data/db.json        数据
+server/index.js        服务入口
+server/api.js          接口路由与错误处理
+server/store.js        数据读写
+server/pricing.js      计费口径
+server/zones.js        分区与城市归属
+server/customers.js    客户
+server/waybills.js     运单与单条计费
+server/assignments.js  未归属城市补归属（分组/建议/预演/落定）
+server/bills.js        出账与账单
+public/                页面
+data/db.json           数据
 ```
 
 ## 接口一览
@@ -54,9 +63,14 @@ GET    /api/zones                POST /api/zones      PATCH|DELETE /api/zones/:i
 GET    /api/customers            POST /api/customers  PATCH|DELETE /api/customers/:id
 GET    /api/waybills             POST /api/waybills   PATCH|DELETE /api/waybills/:id
 POST   /api/waybills/:id/quote
+GET    /api/assignments
+POST   /api/assignments/preview
+POST   /api/assignments/commit
 GET    /api/bills                GET /api/bills/:id
 POST   /api/bills/generate       POST /api/bills/:id/void
 GET    /api/periods
 ```
 
 出账入参：`{ "period": "2026-09", "customerId": "cust-0001" }`
+
+补归属入参：预演 `{ "city": "西港", "zoneId": "zone-0003" }`；落定同参，可附 `note` 备注。出账时一张账单跨多个分区的，各分区分别合并计价（旧版本会把整单按第一个分区算，已修正）。

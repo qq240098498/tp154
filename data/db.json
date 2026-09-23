@@ -489,6 +489,91 @@
       "createdAt": "2026-09-10T09:05:00+08:00",
       "billId": null,
       "quoteCacheYuan": null
+    },
+    {
+      "id": "wb-0023",
+      "code": "YD20260818023",
+      "customerId": "cust-0001",
+      "fromCity": "江城",
+      "toCity": "北滩",
+      "weightKg": 4.6,
+      "volumeM3": 0.012,
+      "pieces": 1,
+      "insuredAmountYuan": 0,
+      "services": [],
+      "status": "已签收",
+      "createdAt": "2026-08-18T13:05:00+08:00",
+      "billId": "bill-0004",
+      "quoteCacheYuan": null
+    },
+    {
+      "id": "wb-0024",
+      "code": "YD20260906024",
+      "customerId": "cust-0002",
+      "fromCity": "海陵",
+      "toCity": "北滩",
+      "weightKg": 2.2,
+      "volumeM3": 0.006,
+      "pieces": 1,
+      "insuredAmountYuan": 0,
+      "services": [],
+      "status": "在途",
+      "createdAt": "2026-09-06T10:00:00+08:00",
+      "billId": null,
+      "quoteCacheYuan": null
+    },
+    {
+      "id": "wb-0025",
+      "code": "YD20260904025",
+      "customerId": "cust-0001",
+      "fromCity": "江城",
+      "toCity": "西港",
+      "weightKg": 6.8,
+      "volumeM3": 0.02,
+      "pieces": 1,
+      "insuredAmountYuan": 0,
+      "services": [
+        "签收"
+      ],
+      "status": "待发",
+      "createdAt": "2026-09-04T09:20:00+08:00",
+      "billId": null,
+      "quoteCacheYuan": null
+    },
+    {
+      "id": "wb-0026",
+      "code": "YD20260909026",
+      "customerId": "cust-0003",
+      "fromCity": "云岭",
+      "toCity": "西港",
+      "weightKg": 1.6,
+      "volumeM3": 0.005,
+      "pieces": 1,
+      "insuredAmountYuan": 0,
+      "services": [],
+      "status": "在途",
+      "createdAt": "2026-09-09T15:40:00+08:00",
+      "billId": null,
+      "quoteCacheYuan": null
+    },
+    {
+      "id": "wb-0027",
+      "code": "YD20260912027",
+      "customerId": "cust-0004",
+      "fromCity": "远山",
+      "toCity": "西港",
+      "weightKg": 21.4,
+      "volumeM3": 0.06,
+      "pieces": 3,
+      "insuredAmountYuan": 3000,
+      "services": [
+        "保价",
+        "上门"
+      ],
+      "status": "已签收",
+      "createdAt": "2026-09-12T08:55:00+08:00",
+      "billId": null,
+      "quoteCacheYuan": null
     }
   ],
   "bills": [
@@ -690,7 +775,8 @@
         "wb-0005",
         "wb-0006",
         "wb-0007",
-        "wb-0008"
+        "wb-0008",
+        "wb-0023"
       ],
       "lines": [
         {
@@ -699,7 +785,7 @@
           "toCity": "海陵",
           "zoneName": "同城",
           "billableKg": 3.5,
-          "amountYuan": 10.25,
+          "amountYuan": 10.23,
           "fromCache": false
         },
         {
@@ -708,7 +794,7 @@
           "toCity": "云岭高新区",
           "zoneName": "同城",
           "billableKg": 2.5,
-          "amountYuan": 7.32,
+          "amountYuan": 7.3,
           "fromCache": false
         },
         {
@@ -717,7 +803,7 @@
           "toCity": "江城",
           "zoneName": "同城",
           "billableKg": 13,
-          "amountYuan": 38.05,
+          "amountYuan": 37.98,
           "fromCache": false
         },
         {
@@ -726,7 +812,7 @@
           "toCity": "海陵",
           "zoneName": "同城",
           "billableKg": 1.5,
-          "amountYuan": 27.85,
+          "amountYuan": 27.84,
           "fromCache": false
         },
         {
@@ -735,7 +821,7 @@
           "toCity": "海陵",
           "zoneName": "同城",
           "billableKg": 1.5,
-          "amountYuan": 27.85,
+          "amountYuan": 27.84,
           "fromCache": false
         },
         {
@@ -744,7 +830,7 @@
           "toCity": "海陵",
           "zoneName": "同城",
           "billableKg": 1.5,
-          "amountYuan": 27.85,
+          "amountYuan": 27.84,
           "fromCache": false
         },
         {
@@ -753,7 +839,7 @@
           "toCity": "平原",
           "zoneName": "同城",
           "billableKg": 32.5,
-          "amountYuan": 114.14,
+          "amountYuan": 113.95,
           "fromCache": false
         },
         {
@@ -762,11 +848,20 @@
           "toCity": "海陵",
           "zoneName": "同城",
           "billableKg": 5.5,
-          "amountYuan": 16.1,
+          "amountYuan": 16.07,
+          "fromCache": false
+        },
+        {
+          "waybillId": "wb-0023",
+          "code": "YD20260818023",
+          "toCity": "北滩",
+          "zoneName": "同城",
+          "billableKg": 5,
+          "amountYuan": 14.61,
           "fromCache": false
         }
       ],
-      "amountYuan": 269.3915,
+      "amountYuan": 283.6415,
       "discountPermille": 950
     }
   ]

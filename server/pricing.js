@@ -91,6 +91,24 @@ function quoteWaybill(waybill, zone, customer, settings) {
   };
 }
 
+// 逐行金额四舍五入到分后，合计可能与未舍入总额差一两分；
+// 把尾差吸收到金额最大的一行，保证账单总额与明细合计严格相等。
+// 行里若有取自运单缓存的金额（不能擅改），则不对齐，沿用旧口径。
+function alignLineAmounts(lines, amountYuan) {
+  if (!Array.isArray(lines) || lines.length === 0) return lines;
+  if (lines.some((line) => line.fromCache)) return lines;
+  const target = roundFen(amountYuan);
+  const sumFen = lines.reduce((total, line) => total + Math.round(Number(line.amountYuan || 0) * 100), 0);
+  let diffFen = Math.round(target * 100) - sumFen;
+  if (diffFen === 0) return lines;
+  let index = 0;
+  lines.forEach((line, i) => {
+    if (Number(line.amountYuan) > Number(lines[index].amountYuan)) index = i;
+  });
+  lines[index].amountYuan = roundFen((Math.round(Number(lines[index].amountYuan) * 100) + diffFen) / 100);
+  return lines;
+}
+
 module.exports = {
   DEFAULT_SETTINGS,
   settingsOf,
@@ -102,4 +120,5 @@ module.exports = {
   surchargeYuan,
   discountPermilleOf,
   quoteWaybill,
+  alignLineAmounts,
 };

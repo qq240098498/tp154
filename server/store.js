@@ -43,6 +43,7 @@ function normalize(raw) {
   out.zones.forEach((zone) => {
     if (!Array.isArray(zone.cities)) zone.cities = [];
     if (!zone.aliases || typeof zone.aliases !== 'object') zone.aliases = {};
+    if (!Array.isArray(zone.assignments)) zone.assignments = [];
   });
   out.waybills.forEach((waybill) => {
     if (!Array.isArray(waybill.services)) waybill.services = [];

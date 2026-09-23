@@ -22,6 +22,7 @@ function listZones() {
       status: zone.status,
       citiesText: zone.cities.join('、'),
       aliasesText: Object.keys(zone.aliases || {}).join('、'),
+      assignments: Array.isArray(zone.assignments) ? zone.assignments.slice() : [],
     })),
     total: data.zones.length,
   };
