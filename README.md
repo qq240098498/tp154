@@ -16,6 +16,7 @@ npm start
 - 概览：分区、客户、运单、账单的数量与金额合计，运单状态分布，已有账期，未归属城市的运单数
 - 运单：登记与维护运单（客户、寄件城市、收件城市、实际重量、体积、件数、保价金额、附加服务、状态、创建时刻），支持按关键词、客户、状态筛选，可以只看收件城市还没归属分区的运单
 - 运单计费：对单条运单算一次费用，结果会记在这条运单上，页面上直接能看到上次算出来的数
+- 补归属：收件城市没登记到任何分区的运单可以先保存，事后在「补归属」标签按城市统一管理——按城市分组列出条数、涉及客户、最早与最晚创建时刻，给出建议归属分区与依据；选分区后先预演（受影响条数、预计计费合计、与之前差额、逐单金额），确认落定后城市写进分区的覆盖城市登记，这批运单随即能正常计费与出账，该城市从视图消失
 - 分区：维护分区编码、名称、覆盖城市与城市别名、首重与续重价格、偏远附加、启用状态
 - 客户：维护客户编码、名称、结算方式（月结／现结）、折扣、账期日
 - 账单：按账期与客户出账，查看账单总额与逐条明细，可以把账单作废
@@ -39,6 +40,7 @@ server/pricing.js   计费口径
 server/zones.js     分区与城市归属
 server/customers.js 客户
 server/waybills.js  运单与单条计费
+server/unzoned.js   未归属城市的分组视图、建议分区、预演与落定
 server/bills.js     出账与账单
 public/             页面
 data/db.json        数据
@@ -57,6 +59,12 @@ POST   /api/waybills/:id/quote
 GET    /api/bills                GET /api/bills/:id
 POST   /api/bills/generate       POST /api/bills/:id/void
 GET    /api/periods
+GET    /api/unzoned              GET /api/unzoned/:city
+POST   /api/unzoned/preview      POST /api/unzoned/assign
 ```
 
 出账入参：`{ "period": "2026-09", "customerId": "cust-0001" }`
+候选运单里有未归属城市时出账会被拒绝（`BILL_HAS_UNZONED_CITY`），先去补归属。
+
+补归属预演入参：`{ "city": "江城开发区", "zoneId": "zone-0001" }`
+补归属落定入参：`{ "city": "江城开发区", "zoneId": "zone-0001", "confirm": "yes" }`（先预演再确认；城市写进分区的覆盖城市登记，已进账单的运单需先作废账单）

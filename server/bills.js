@@ -1,17 +1,12 @@
 const { badRequest, notFound } = require('./errors');
 const { load, save, nextId } = require('./store');
 const pricing = require('./pricing');
+const zones = require('./zones');
 const { findCustomer } = require('./customers');
 
-function cleanCity(value) {
-  return String(value == null ? '' : value).trim();
-}
-
-// 账单里的分区判断：拿收件城市跟各分区登记的城市直接比
+// 账单里的分区判断：与运单计费保持同一口径（先别名后城市登记）
 function zoneOf(data, city) {
-  const target = cleanCity(city);
-  const matched = data.zones.find((zone) => (zone.cities || []).some((item) => cleanCity(item) === target));
-  return matched || data.zones[0] || null;
+  return zones.zoneOfCity(data, city);
 }
 
 // 账期：按运单创建时刻的年月
@@ -123,6 +118,17 @@ function generateBill(payload) {
   if (!customer) throw badRequest('BILL_CUSTOMER_REQUIRED', '要选一个客户', { field: 'customerId' });
   const targets = candidateWaybills(data, period, customerId);
   if (targets.length === 0) throw badRequest('BILL_NO_WAYBILL', '这个账期里这个客户没有可以出账的运单', { field: 'period' });
+  const unzonedCities = Array.from(new Set(
+    targets
+      .filter((waybill) => !zones.zoneOfCity(data, waybill.toCity))
+      .map((waybill) => String(waybill.toCity || '').trim())
+      .filter(Boolean)
+  ));
+  if (unzonedCities.length > 0) {
+    throw badRequest('BILL_HAS_UNZONED_CITY',
+      '有 ' + unzonedCities.length + ' 个收件城市还没归属分区（' + unzonedCities.join('、') + '），先到「补归属」处理完再出账',
+      { cities: unzonedCities });
+  }
   const priced = priceBill(data, customer, targets);
   const samePeriod = data.bills.filter((bill) => bill.period === period && bill.customerId === customerId).length;
   const bill = {

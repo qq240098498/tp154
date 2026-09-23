@@ -5,7 +5,7 @@
   /* ================= 常量 ================= */
   var STATUSES = ['待发', '在途', '已签收', '退回'];
   var SERVICE_OPTIONS = ['保价', '签收', '上门'];
-  var TAB_LABELS = { overview: '概览', waybills: '运单', zones: '分区', customers: '客户', bills: '账单' };
+  var TAB_LABELS = { overview: '概览', waybills: '运单', unzoned: '补归属', zones: '分区', customers: '客户', bills: '账单' };
   var FIELD_LABELS = {
     code: '编码/运单号', name: '名称', status: '状态', customerId: '客户',
     fromCity: '寄件城市', toCity: '收件城市', weightKg: '实际重量', volumeM3: '体积',
@@ -22,6 +22,13 @@
     zones: [],
     customers: [],
     waybills: { waybills: [], total: 0, lockedCount: 0, unzonedCount: 0 },
+    unzoned: { groups: [], total: 0, waybillCount: 0 },
+    selectedUnzonedCity: '',
+    unzonedDetail: null,
+    unzonedLoading: false,
+    assignZoneId: '',
+    assignPreview: null,
+    assignArmed: false,
     bills: { bills: [], total: 0, issued: 0, voided: 0 },
     periods: [],
     filters: { keyword: '', customerId: '', status: '', unzoned: false },
@@ -141,13 +148,18 @@
       state.waybills = r || { waybills: [], total: 0, lockedCount: 0, unzonedCount: 0 };
     });
   }
+  function loadUnzoned() {
+    return api('GET', '/api/unzoned').then(function (r) {
+      state.unzoned = r || { groups: [], total: 0, waybillCount: 0 };
+    });
+  }
 
   function refreshAll() {
     var errors = [];
     function keep(promise) { return promise.catch(function (err) { errors.push(err); }); }
     return Promise.all([
       keep(loadSummary()), keep(loadZones()), keep(loadCustomers()),
-      keep(loadWaybills()), keep(loadBills()), keep(loadPeriods())
+      keep(loadWaybills()), keep(loadUnzoned()), keep(loadBills()), keep(loadPeriods())
     ]).then(function () {
       if (errors.length) throw errors[0];
     });
@@ -233,6 +245,9 @@
       case 'waybills':
         text = '运单清单 ' + num(state.waybills.total) + ' 条';
         break;
+      case 'unzoned':
+        text = '待补归属城市 ' + num(state.unzoned.total) + ' 个 / 运单 ' + num(state.unzoned.waybillCount) + ' 条';
+        break;
       case 'zones':
         text = '分区清单 ' + num(state.zones.length) + ' 个';
         break;
@@ -281,6 +296,7 @@
       '<div class="block"><h3 class="block-title">快捷入口</h3>' +
       '<div class="btn-stack">' +
       '<button type="button" class="btn btn-amber" data-action="goto-unzoned">只看未归属城市的运单</button>' +
+      '<button type="button" class="btn btn-amber" data-action="tab" data-tab="unzoned">去补归属（按城市整城处理）</button>' +
       '<button type="button" class="btn" data-action="tab" data-tab="bills">去出账</button>' +
       '<button type="button" class="btn btn-ghost" data-action="refresh-all">刷新全部数据</button>' +
       '</div></div>';
@@ -324,7 +340,7 @@
     var cities = s.unzonedCities || [];
     var cityHtml = cities.length
       ? '<div class="chips">' + cities.map(function (city) {
-        return '<button type="button" class="chip chip-btn is-amber" data-action="goto-unzoned">' + esc(city) + '</button>';
+        return '<button type="button" class="chip chip-btn is-amber" data-action="tab" data-tab="unzoned">' + esc(city) + '</button>';
       }).join('') + '</div>'
       : '<p class="block-hint">没有未归属的收件城市。</p>';
 
@@ -624,6 +640,223 @@
       render();
       ok('运单 ' + result.waybill.code + ' 计费完成：计费重量 ' + money(result.billableKg) + ' kg，合计 ' + money(result.totalYuan) + ' 元');
     } catch (err) {
+      fail(err);
+    }
+  }
+
+  /* ================= 补归属 ================= */
+  function confidenceText(code) {
+    if (code === 'name-like') return '名称相近';
+    if (code === 'from-city') return '寄件城市参考';
+    if (code === 'fallback-first-enabled') return '默认建议';
+    return '暂无建议';
+  }
+  function confidenceTone(code) {
+    if (code === 'name-like') return 'tag-amber';
+    if (code === 'from-city') return '';
+    return 'tag-warn';
+  }
+
+  function renderUnzonedLeft() {
+    var u = state.unzoned;
+    var body =
+      '<div class="block"><h3 class="block-title">这是什么</h3>' +
+      '<p class="block-hint">收件城市没登记到任何分区的运单能正常保存，但算不出运费、也出不了账。这里把这些运单按收件城市归在一起，可以整城补归属。</p></div>' +
+      '<div class="block"><h3 class="block-title">积压统计</h3>' +
+      '<div class="stat-list">' +
+      '<div class="stat-row"><span class="stat-name">待补归属城市</span><span class="stat-val">' + num(u.total) + ' 个</span></div>' +
+      '<div class="stat-row"><span class="stat-name">压着的运单</span><span class="stat-val">' + num(u.waybillCount) + ' 条</span></div>' +
+      '</div></div>' +
+      '<button type="button" class="btn btn-ghost btn-block" data-action="refresh-unzoned">刷新积压清单</button>' +
+      '<p class="foot-note">落定时会把城市写进分区的「覆盖城市」登记里，不是只改运单上的临时标记；落定后这些运单就能正常计费、出账。</p>';
+    return paneBlock('未归属城市', 'GET /api/unzoned', body);
+  }
+
+  function renderUnzonedMid() {
+    var groups = state.unzoned.groups || [];
+    var meta = '城市 ' + num(state.unzoned.total) + ' 个 / 运单 ' + num(state.unzoned.waybillCount) + ' 条';
+    if (!groups.length) {
+      return paneBlock('待补归属城市', meta, emptyBlock('没有压着未归属城市的运单', '所有收件城市都已经登记到分区，新运单可以正常计费。'));
+    }
+    var html = groups.map(function (g) {
+      var selected = g.city === state.selectedUnzonedCity;
+      var sg = g.suggestion || {};
+      return '<article class="card' + (selected ? ' is-selected' : '') + '" data-action="select-unzoned-city" data-city="' + attr(g.city) + '">' +
+        '<div class="card-top">' +
+        '<span class="card-code">' + esc(g.city) + '</span>' +
+        '<span class="badge st-return">' + num(g.count) + ' 条</span>' +
+        '</div>' +
+        '<div class="card-sub">客户：' + esc(g.customerText || '—') + '</div>' +
+        '<div class="card-sub">最早 ' + esc(g.firstCreatedAtText) + ' ｜ 最晚 ' + esc(g.lastCreatedAtText) + '</div>' +
+        '<div class="card-tags">' +
+        (sg.zoneId
+          ? '<span class="tag ' + confidenceTone(sg.reasonCode) + '">建议 ' + esc(sg.zoneCode + ' ' + sg.zoneName) + ' · ' + esc(confidenceText(sg.reasonCode)) + '</span>'
+          : '<span class="tag tag-warn">暂无可用分区</span>') +
+        '</div>' +
+        '</article>';
+    }).join('');
+    return paneBlock('待补归属城市', meta, '<div class="card-grid">' + html + '</div>');
+  }
+
+  function unzonedZoneOptionsHtml(detail, selectedId) {
+    return (detail.zoneOptions || []).map(function (z) {
+      return '<option value="' + attr(z.id) + '"' + (z.id === selectedId ? ' selected' : '') + '>' +
+        esc(z.code + ' ' + z.name + '（' + z.status + '）') + '</option>';
+    }).join('');
+  }
+
+  function renderAssignPreview(preview) {
+    if (!preview) return '';
+    var rows = (preview.lines || []).map(function (line) {
+      return '<tr>' +
+        '<td>' + esc(line.code) + '</td>' +
+        '<td>' + esc(line.customerName) + '</td>' +
+        '<td class="num">' + esc(kg(line.billableKg)) + '</td>' +
+        '<td class="num">' + esc(line.amountText || money(line.amountYuan)) + '</td>' +
+        '</tr>';
+    }).join('');
+    var deltaCls = Number(preview.deltaYuan) > 0 ? 'is-amber' : '';
+    return '<div class="panel is-amber" style="margin-top:12px;">' +
+      '<h4 class="panel-title">补归属预演（未落定）</h4>' +
+      '<div class="amount-row"><span>跟着变的运单</span><b>' + num(preview.count) + ' 条</b></div>' +
+      '<div class="amount-row"><span>归属前可计费金额</span><b>' + esc(money(preview.previousYuan)) + ' 元</b></div>' +
+      '<div class="amount-row"><span>落定后预计计费合计</span><b>' + esc(money(preview.totalYuan)) + ' 元</b></div>' +
+      '<div class="amount-row is-total ' + deltaCls + '"><span>与之前相比</span><b>' + esc(preview.deltaText || money(preview.deltaYuan)) + ' 元</b></div>' +
+      '<p class="foot-note">' + esc(preview.previousBasis || '') + '</p>' +
+      '<div class="table-wrap"><table><thead><tr>' +
+      '<th>运单号</th><th>客户</th><th class="num">计费重量</th><th class="num">预计金额(元)</th>' +
+      '</tr></thead><tbody>' + rows + '</tbody></table></div>' +
+      '</div>';
+  }
+
+  function renderUnzonedRight() {
+    var city = state.selectedUnzonedCity;
+    if (!city) {
+      return paneBlock('城市详情', '', emptyBlock('还没有选中城市', '在中间清单里点一个城市，看建议依据并选分区做预演。'));
+    }
+    var detail = state.unzonedDetail;
+    if (!detail || detail.city !== city) {
+      if (state.unzonedLoading) return paneBlock('城市详情', '', loadingBlock('正在读取这个城市的运单…'));
+      return paneBlock('城市详情', '', emptyBlock('还没有选中城市', '在中间清单里点一个城市查看。'));
+    }
+    var sg = detail.suggestion || {};
+    var zoneId = state.assignZoneId || sg.zoneId || '';
+    var preview = state.assignPreview;
+
+    var detailHead =
+      '<div class="detail-head">' +
+      '<span class="detail-title">' + esc(detail.city) + '</span>' +
+      '<span class="badge st-return">' + num(detail.count) + ' 条运单</span>' +
+      '</div>' +
+      '<dl class="kv-list">' +
+      '<dt>涉及客户</dt><dd>' + esc(detail.customerText || '—') + '</dd>' +
+      '<dt>最早创建</dt><dd>' + esc(detail.firstCreatedAtText || '—') + '</dd>' +
+      '<dt>最晚创建</dt><dd>' + esc(detail.lastCreatedAtText || '—') + '</dd>' +
+      '<dt>建议分区</dt><dd class="is-amber">' + (sg.zoneId ? esc(sg.zoneCode + ' ' + sg.zoneName) : '—') + '</dd>' +
+      '<dt>建议依据</dt><dd>' + esc(sg.reason || '—') + '</dd>' +
+      '</dl>';
+
+    var wbRows = (detail.waybills || []).map(function (w) {
+      return '<tr>' +
+        '<td>' + esc(w.code) + '</td>' +
+        '<td>' + esc(w.customerName) + '</td>' +
+        '<td>' + esc(w.createdAtText) + '</td>' +
+        '<td class="num">' + esc(kg(w.weightKg)) + '</td>' +
+        '<td class="num">' + esc(m3(w.volumeM3)) + '</td>' +
+        '<td>' + (w.billId ? ('已入账 ' + esc(w.billCode)) : '未入账') + '</td>' +
+        '</tr>';
+    }).join('');
+    var wbTable = '<div class="table-wrap"><table><thead><tr>' +
+      '<th>运单号</th><th>客户</th><th>创建时刻</th><th class="num">重量</th><th class="num">体积</th><th>入账</th>' +
+      '</tr></thead><tbody>' + wbRows + '</tbody></table></div>';
+
+    var form =
+      '<div class="block" style="margin-top:12px;"><h3 class="block-title">整城补归属</h3>' +
+      '<label class="field"><span class="field-label">归属到分区（这个城市下的全部运单一起处理）</span>' +
+      '<select id="assignZone">' + unzonedZoneOptionsHtml(detail, zoneId) + '</select></label>' +
+      '<div class="btn-row">' +
+      '<button type="button" class="btn btn-primary" data-action="preview-assign">先做预演</button>' +
+      (preview
+        ? '<button type="button" class="btn btn-danger' + (state.assignArmed ? ' is-armed' : '') + '" data-action="confirm-assign">' +
+          (state.assignArmed ? '确认落定（再点一次）' : '确认落定') + '</button>'
+        : '') +
+      '</div>' +
+      (preview ? '<p class="foot-note warn-text">落定会把「' + esc(detail.city) + '」写进所选分区的覆盖城市登记，落定后该城市从本视图消失。</p>' : '') +
+      renderAssignPreview(preview) +
+      '</div>';
+
+    return paneBlock('城市详情 · ' + detail.city, '', detailHead +
+      '<div class="block"><h3 class="block-title">这个城市压着的运单（' + num(detail.count) + '）</h3>' + wbTable + '</div>' +
+      form);
+  }
+
+  async function selectUnzonedCity(city) {
+    state.selectedUnzonedCity = city;
+    state.unzonedDetail = null;
+    state.assignPreview = null;
+    state.assignArmed = false;
+    state.assignZoneId = '';
+    state.unzonedLoading = true;
+    renderMid();
+    renderRight();
+    setStatus('正在读取城市「' + city + '」的运单…');
+    try {
+      var detail = await api('GET', '/api/unzoned/' + encodeURIComponent(city));
+      if (state.selectedUnzonedCity === city) {
+        state.unzonedDetail = detail;
+        state.assignZoneId = (detail.suggestion && detail.suggestion.zoneId) || '';
+      }
+    } catch (err) {
+      state.selectedUnzonedCity = '';
+      fail(err);
+    } finally {
+      state.unzonedLoading = false;
+      renderMid();
+      renderRight();
+    }
+  }
+
+  async function previewAssign() {
+    var detail = state.unzonedDetail;
+    var sel = document.getElementById('assignZone');
+    if (!detail || !sel) return;
+    state.assignZoneId = sel.value;
+    state.assignPreview = null;
+    state.assignArmed = false;
+    renderRight();
+    try {
+      var preview = await api('POST', '/api/unzoned/preview', { city: detail.city, zoneId: state.assignZoneId });
+      state.assignPreview = preview;
+      renderRight();
+      setStatus('预演完成：' + preview.count + ' 条运单，预计计费合计 ' + money(preview.totalYuan) + ' 元，差额 ' + preview.deltaText + ' 元');
+    } catch (err) {
+      fail(err);
+    }
+  }
+
+  async function confirmAssign() {
+    var detail = state.unzonedDetail;
+    if (!detail || !state.assignPreview) return;
+    if (!state.assignArmed) {
+      state.assignArmed = true;
+      renderRight();
+      setStatus('再点一次「确认落定」，城市「' + detail.city + '」就会写进分区登记');
+      return;
+    }
+    try {
+      var result = await api('POST', '/api/unzoned/assign', {
+        city: detail.city, zoneId: state.assignZoneId, confirm: 'yes'
+      });
+      state.selectedUnzonedCity = '';
+      state.unzonedDetail = null;
+      state.assignPreview = null;
+      state.assignArmed = false;
+      await refreshAll();
+      render();
+      ok('已落定：城市「' + result.city + '」登记到 ' + result.zoneCode + ' ' + result.zoneName +
+        '，' + result.count + ' 条运单已可正常计费（合计 ' + money(result.totalYuan) + ' 元），剩余待补城市 ' + result.remainingCityCount + ' 个');
+    } catch (err) {
+      state.assignArmed = false;
       fail(err);
     }
   }
@@ -1234,6 +1467,7 @@
   function renderLeft() {
     if (state.tab === 'overview') setLeft(renderOverviewLeft());
     else if (state.tab === 'waybills') setLeft(renderWaybillsLeft());
+    else if (state.tab === 'unzoned') setLeft(renderUnzonedLeft());
     else if (state.tab === 'zones') setLeft(renderZonesLeft());
     else if (state.tab === 'customers') setLeft(renderCustomersLeft());
     else setLeft(renderBillsLeft());
@@ -1241,6 +1475,7 @@
   function renderMid() {
     if (state.tab === 'overview') setMid(renderOverviewMid());
     else if (state.tab === 'waybills') setMid(renderWaybillsMid());
+    else if (state.tab === 'unzoned') setMid(renderUnzonedMid());
     else if (state.tab === 'zones') setMid(renderZonesMid());
     else if (state.tab === 'customers') setMid(renderCustomersMid());
     else setMid(renderBillsMid());
@@ -1248,6 +1483,7 @@
   function renderRight() {
     if (state.tab === 'overview') setRight(renderOverviewRight());
     else if (state.tab === 'waybills') setRight(renderWaybillsRight());
+    else if (state.tab === 'unzoned') setRight(renderUnzonedRight());
     else if (state.tab === 'zones') setRight(renderZonesRight());
     else if (state.tab === 'customers') setRight(renderCustomersRight());
     else setRight(renderBillsRight());
@@ -1262,6 +1498,15 @@
     render();
     try {
       await refreshAll();
+      if (key === 'unzoned' && state.selectedUnzonedCity) {
+        var stillThere = (state.unzoned.groups || []).some(function (g) { return g.city === state.selectedUnzonedCity; });
+        if (!stillThere) {
+          state.selectedUnzonedCity = '';
+          state.unzonedDetail = null;
+          state.assignPreview = null;
+          state.assignArmed = false;
+        }
+      }
       render();
       if (key === 'bills' && state.selectedBillId) await loadBillDetail(state.selectedBillId);
       ok('已切换到「' + TAB_LABELS[key] + '」');
@@ -1339,6 +1584,13 @@
       var preview = document.getElementById('discountPreview');
       if (preview) preview.textContent = '当前折扣：' + discountTextOf(el.value);
     }
+    if (el.id === 'assignZone' && state.assignPreview) {
+      // 换了目标分区，旧预演作废，要重新预演才能落定
+      state.assignPreview = null;
+      state.assignArmed = false;
+      state.assignZoneId = el.value;
+      renderRight();
+    }
   }
 
   async function handleAction(action, target) {
@@ -1414,6 +1666,13 @@
         }
         break;
       case 'quote-waybill': await quoteWaybill(id || state.selectedWaybillId); break;
+
+      case 'select-unzoned-city': await selectUnzonedCity(target.getAttribute('data-city') || ''); break;
+      case 'preview-assign': await previewAssign(); break;
+      case 'confirm-assign': await confirmAssign(); break;
+      case 'refresh-unzoned':
+        try { state.selectedUnzonedCity = ''; state.unzonedDetail = null; state.assignPreview = null; await loadUnzoned(); await loadSummary(); render(); ok('积压清单已刷新，待补城市 ' + state.unzoned.total + ' 个'); } catch (err) { fail(err); }
+        break;
 
       case 'new-zone':
         state.zoneMode = 'create';

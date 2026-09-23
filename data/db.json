@@ -2,7 +2,7 @@
   "meta": {
     "name": "运单计费与账单核对台",
     "currency": "CNY",
-    "updatedAt": "2026-09-22T12:48:30.802Z"
+    "updatedAt": "2026-09-23T08:31:55.217Z"
   },
   "settings": {
     "volumetricDivisor": 6000,
@@ -19,7 +19,8 @@
       "name": "同城",
       "cities": [
         "江城",
-        "海陵"
+        "海陵",
+        "江城开发区"
       ],
       "aliases": {
         "江城城区": "江城",
@@ -487,6 +488,108 @@
       "services": [],
       "status": "待发",
       "createdAt": "2026-09-10T09:05:00+08:00",
+      "billId": null,
+      "quoteCacheYuan": null
+    },
+    {
+      "id": "wb-0023",
+      "code": "YD20260912023",
+      "customerId": "cust-0001",
+      "fromCity": "江城",
+      "toCity": "江城开发区",
+      "weightKg": 2.1,
+      "volumeM3": 0.006,
+      "pieces": 1,
+      "insuredAmountYuan": 0,
+      "services": [],
+      "status": "待发",
+      "createdAt": "2026-09-12T10:20:00+08:00",
+      "billId": null,
+      "quoteCacheYuan": 11.88,
+      "quoteCachedAt": "2026-09-23T08:31:55.217Z"
+    },
+    {
+      "id": "wb-0024",
+      "code": "YD20260915024",
+      "customerId": "cust-0002",
+      "fromCity": "海陵",
+      "toCity": "江城开发区",
+      "weightKg": 6.5,
+      "volumeM3": 0.02,
+      "pieces": 2,
+      "insuredAmountYuan": 0,
+      "services": [
+        "签收"
+      ],
+      "status": "在途",
+      "createdAt": "2026-09-15T14:00:00+08:00",
+      "billId": null,
+      "quoteCacheYuan": 24.01,
+      "quoteCachedAt": "2026-09-23T08:31:55.217Z"
+    },
+    {
+      "id": "wb-0025",
+      "code": "YD20260913025",
+      "customerId": "cust-0003",
+      "fromCity": "云岭",
+      "toCity": "星滩",
+      "weightKg": 1.2,
+      "volumeM3": 0.004,
+      "pieces": 1,
+      "insuredAmountYuan": 0,
+      "services": [],
+      "status": "已签收",
+      "createdAt": "2026-09-13T09:10:00+08:00",
+      "billId": null,
+      "quoteCacheYuan": null
+    },
+    {
+      "id": "wb-0026",
+      "code": "YD20260916026",
+      "customerId": "cust-0003",
+      "fromCity": "青峰",
+      "toCity": "星滩",
+      "weightKg": 0.8,
+      "volumeM3": 0.003,
+      "pieces": 1,
+      "insuredAmountYuan": 0,
+      "services": [],
+      "status": "待发",
+      "createdAt": "2026-09-16T16:30:00+08:00",
+      "billId": null,
+      "quoteCacheYuan": null
+    },
+    {
+      "id": "wb-0027",
+      "code": "YD20260914027",
+      "customerId": "cust-0004",
+      "fromCity": "远山",
+      "toCity": "洛水关",
+      "weightKg": 12,
+      "volumeM3": 0.04,
+      "pieces": 2,
+      "insuredAmountYuan": 0,
+      "services": [],
+      "status": "在途",
+      "createdAt": "2026-09-14T11:40:00+08:00",
+      "billId": null,
+      "quoteCacheYuan": null
+    },
+    {
+      "id": "wb-0028",
+      "code": "YD20260918028",
+      "customerId": "cust-0001",
+      "fromCity": "平原",
+      "toCity": "洛水关",
+      "weightKg": 4.4,
+      "volumeM3": 0.014,
+      "pieces": 1,
+      "insuredAmountYuan": 0,
+      "services": [
+        "上门"
+      ],
+      "status": "待发",
+      "createdAt": "2026-09-18T08:05:00+08:00",
       "billId": null,
       "quoteCacheYuan": null
     }

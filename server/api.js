@@ -5,6 +5,7 @@ const zones = require('./zones');
 const customers = require('./customers');
 const waybills = require('./waybills');
 const bills = require('./bills');
+const unzoned = require('./unzoned');
 const pricing = require('./pricing');
 
 function buildSummary() {
@@ -90,6 +91,12 @@ function createRouter() {
   router.post('/bills/generate', (req, res) => res.status(201).json(bills.generateBill(req.body || {})));
   router.get('/bills/:id', (req, res) => res.json(bills.getBill(req.params.id)));
   router.post('/bills/:id/void', (req, res) => res.json(bills.voidBill(req.params.id)));
+
+  // 未归属城市的运单：按城市分组查看、选分区预演、确认后把城市写进分区登记
+  router.get('/unzoned', (req, res) => res.json(unzoned.listUnzoned()));
+  router.get('/unzoned/:city', (req, res) => res.json(unzoned.getUnzonedCity(req.params.city)));
+  router.post('/unzoned/preview', (req, res) => res.json(unzoned.previewAssign((req.body || {}).city, (req.body || {}).zoneId)));
+  router.post('/unzoned/assign', (req, res) => res.json(unzoned.confirmAssign(req.body || {})));
 
   router.use((req, res) => {
     res.status(404).json({ error: { code: 'ROUTE_NOT_FOUND', message: '没有这个接口：' + req.method + ' ' + req.path } });
